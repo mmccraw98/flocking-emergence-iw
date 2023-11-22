@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+from sklearn.decomposition import PCA
+
 import os
 import re
 
@@ -51,3 +53,23 @@ def get_velocity_order_parameter(df):
     df[['vx', 'vy', 'vz']] = df[['vx', 'vy', 'vz']].div(df['V'], axis=0)  # normalize the velocity vectors
     vel_order = df.groupby('time')[['vx', 'vy', 'vz']].sum().apply(np.linalg.norm, axis=1) / num_birds  # average the velocity vectors and get the resulting norm
     return vel_order
+
+def get_variance_ratios(df_start, skip_every_n_steps=3):
+    pca = PCA(n_components=3)
+
+    variance_ratio_components = []
+
+    df = df_start.copy()
+    times = np.sort(df.time.unique())
+    for i in tqdm(range(1, times.size // skip_every_n_steps)):
+        time = times[i * skip_every_n_steps]
+        sub_df = df[(df.time == time)].copy()
+        pos = sub_df[['x', 'y', 'z']].values
+        try:
+            pca.fit(pos)
+            variance_ratios = pca.explained_variance_ratio_  # if the third component is large, then the birds are flying in a volume, if it is small, they are in a plane
+            variance_ratio_components.append(variance_ratios)
+        except:
+            variance_ratio_components.append([0, 0, 0])  # sometimes there is no data, probably need to handle this better
+    
+    return np.array(variance_ratio_components)
