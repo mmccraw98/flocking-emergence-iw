@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from sklearn.decomposition import PCA
+from scipy.interpolate import interp1d
 
 import os
 import re
@@ -73,3 +74,31 @@ def get_variance_ratios(df_start, skip_every_n_steps=3):
             variance_ratio_components.append([0, 0, 0])  # sometimes there is no data, probably need to handle this better
     
     return np.array(variance_ratio_components)
+
+def get_number_densities(df_start, skip_every_n_steps=3):
+    pca = PCA(n_components=3)
+
+    densities = []  # transform data to PCA space, get volume of the bounding ellipsoid, and divide by number of birds
+
+    df = df_start.copy()
+    times = np.sort(df.time.unique())
+    for i in tqdm(range(1, times.size // skip_every_n_steps)):
+        time = times[i * skip_every_n_steps]
+        sub_df = df[(df.time == time)].copy()
+        pos = sub_df[['x', 'y', 'z']].values
+        try:
+            pca_pos = pca.fit_transform(pos)
+            ranges = np.ptp(pca_pos, axis=0)
+            a, b, c = ranges / 2  # Half the lengths of principal axes
+            volume = 4/3 * np.pi * a * b * c  # treat the flock as an ellipsoid
+            densities.append(sub_df.tid.nunique() / volume)
+        except:
+            densities.append(0)  # sometimes there is no data, probably need to handle this better
+    
+    return np.array(densities)
+
+def downsample_A2B(A, B):
+    x = np.linspace(0, 1, len(A))
+    x_new = np.linspace(0, 1, len(B))
+    f = interp1d(x, A)
+    return f(x_new)
