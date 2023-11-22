@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-
+from scipy.spatial import ConvexHull
 from sklearn.decomposition import PCA
 from scipy.interpolate import interp1d
 
@@ -48,7 +48,8 @@ def get_birds_in_time_range(df, time_start, time_end):
     final_df = filtered_df[filtered_df['tid'].isin(complete_tids)]
     return final_df
 
-def get_velocity_order_parameter(df):
+def get_velocity_order_parameter(df_start):
+    df = df_start.copy()
     # calculates the the length of the average velocity vector for each time step
     num_birds = df.groupby('time').apply(lambda x: x.tid.nunique())  # get number of birds for averaging
     df[['vx', 'vy', 'vz']] = df[['vx', 'vy', 'vz']].div(df['V'], axis=0)  # normalize the velocity vectors
@@ -97,8 +98,52 @@ def get_number_densities(df_start, skip_every_n_steps=3):
     
     return np.array(densities)
 
+def get_number_densities_alt(df_start, skip_every_n_steps=3):
+    df = df_start.copy()
+    densities = []
+    times = np.sort(df.time.unique())
+    for i in tqdm(range(1, times.size // skip_every_n_steps)):
+        time = times[i * skip_every_n_steps]
+        sub_df = df[(df.time == time)].copy()
+        num_birds = sub_df.tid.nunique()
+        try:
+            cuh = ConvexHull(sub_df[['x', 'y', 'z']].values)
+            densities.append(num_birds / cuh.volume)
+        except:
+            densities.append(0)
+    return np.array(densities)
+
 def downsample_A2B(A, B):
     x = np.linspace(0, 1, len(A))
     x_new = np.linspace(0, 1, len(B))
     f = interp1d(x, A)
     return f(x_new)
+
+def get_dists(points):
+    diff = points[:, np.newaxis, :] - points[np.newaxis, :, :]
+    distances = np.sqrt(np.sum(diff**2, axis=-1))
+    return distances[np.triu_indices_from(distances, k=1)]
+
+def random_sample_upper_bounds(df, n_random=10):
+    max_dist = -np.inf
+    for i in range(n_random):
+        sdf = df[df.time == df.time.unique()[np.random.randint(0, df.time.unique().size)]].copy()
+        points = sdf[['x', 'y', 'z']].values
+        dists = get_dists(points)
+        max_dist = max(max_dist, dists.max())
+    return max_dist
+
+def get_dist_pdf(df, N_bins=100):
+    sdf = df.copy()
+    max_dist = random_sample_upper_bounds(df, n_random=10)
+    bins = np.linspace(0, max_dist, N_bins)
+    bin_centers = (bins[1:] + bins[:-1]) / 2
+    bin_values = np.zeros(N_bins - 1)
+
+    for i in tqdm(range(sdf.time.unique().size)):
+        points = sdf[['x', 'y', 'z']].values
+        dists = get_dists(points)
+        bin_values += np.histogram(dists, bins=bins)[0]
+
+    pdf = bin_values / (np.sum(bin_values) * (bin_centers[1] - bin_centers[0]))
+    return bin_centers, pdf
