@@ -47,7 +47,7 @@ def get_birds_in_time_range(df, time_start, time_end):
 
 def get_velocity_order_parameter(df):
     # calculates the the length of the average velocity vector for each time step
-    num_birds = len(df.tid.unique())  # get number of birds for averaging
+    num_birds = df.groupby('time').apply(lambda x: x.tid.nunique())  # get number of birds for averaging
     df[['vx', 'vy', 'vz']] = df[['vx', 'vy', 'vz']].div(df['V'], axis=0)  # normalize the velocity vectors
     vel_order = df.groupby('time')[['vx', 'vy', 'vz']].sum().apply(np.linalg.norm, axis=1) / num_birds  # average the velocity vectors and get the resulting norm
     return vel_order
