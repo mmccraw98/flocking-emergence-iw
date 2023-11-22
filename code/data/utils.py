@@ -39,7 +39,7 @@ def load_and_format_data_as_df(path, FPS=29.97):
     return data_all
 
 def get_birds_in_time_range(df, time_start, time_end):
-    filtered_df = df[(df['time'] >= time_start) & (df['time'] <= time_end)]
+    filtered_df = df[(df['time'] >= time_start) & (df['time'] <= time_end)].copy()
     times = filtered_df.time.unique()
     complete_tids = filtered_df.groupby('tid').filter(lambda x: x['time'].size == times.size)['tid'].unique()
     final_df = filtered_df[filtered_df['tid'].isin(complete_tids)]
