@@ -128,6 +128,8 @@ def random_sample_upper_bounds(df, n_random=10):
     max_dist = -np.inf
     for i in range(n_random):
         sdf = df[df.time == df.time.unique()[np.random.randint(0, df.time.unique().size)]].copy()
+        if sdf.shape[0] < 10:
+            continue
         points = sdf[['x', 'y', 'z']].values
         dists = get_dists(points)
         max_dist = max(max_dist, dists.max())
@@ -141,9 +143,44 @@ def get_dist_pdf(df, N_bins=100):
     bin_values = np.zeros(N_bins - 1)
 
     for i in tqdm(range(sdf.time.unique().size)):
-        points = sdf[['x', 'y', 'z']].values
+        points = df[df.time == df.time.values[i]][['x', 'y', 'z']].values
         dists = get_dists(points)
         bin_values += np.histogram(dists, bins=bins)[0]
 
     pdf = bin_values / (np.sum(bin_values) * (bin_centers[1] - bin_centers[0]))
     return bin_centers, pdf
+
+def np_convolve_moving_average(arr, window_size):
+    return np.convolve(arr, np.ones(window_size) / window_size, mode='valid')
+
+def section_df_into_disordered_ordered_regimes(df_start, phi_low=0.2, phi_high=0.6, sm_perc=0.01, min_length=100):
+    df = df_start.copy()
+    vel_order = get_velocity_order_parameter(df)
+    time = df.time.unique()
+
+    win_size = int(vel_order.size * sm_perc)
+    vel_order_sm = np_convolve_moving_average(vel_order, win_size)
+
+    results = {'low': {'regimes': [], 'condition': vel_order_sm < phi_low}, 'high': {'regimes': [], 'condition': vel_order_sm > phi_high}}
+
+    for key in results.keys():
+        condition = results[key]['condition']
+        starts = np.where(np.diff(condition.astype(int)) == 1)[0] + 1
+        stops = np.where(np.diff(condition.astype(int)) == -1)[0] + 1
+
+        if condition[0]:
+            starts = np.insert(starts, 0, 0)
+        if condition[-1]:
+            stops = np.append(stops, len(condition))
+
+        offset = int(win_size / 2)
+        adjusted_starts = starts + offset
+        adjusted_stops = stops + offset
+
+        adjusted_starts = np.clip(adjusted_starts, 0, len(vel_order) - 1)
+        adjusted_stops = np.clip(adjusted_stops, 0, len(vel_order))
+
+        for start, stop in zip(adjusted_starts, adjusted_stops):
+            if stop - start > min_length:
+                results[key]['regimes'].append(time[start:stop])
+    return results['low']['regimes'], results['high']['regimes']
