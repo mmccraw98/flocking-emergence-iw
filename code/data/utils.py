@@ -156,7 +156,7 @@ def np_convolve_moving_average(arr, window_size):
 def section_df_into_disordered_ordered_regimes(df_start, phi_low=0.2, phi_high=0.6, sm_perc=0.01, min_length=100):
     df = df_start.copy()
     vel_order = get_velocity_order_parameter(df)
-    time = df.time.unique()
+    time = np.sort(df.time.unique())
 
     win_size = int(vel_order.size * sm_perc)
     vel_order_sm = np_convolve_moving_average(vel_order, win_size)
