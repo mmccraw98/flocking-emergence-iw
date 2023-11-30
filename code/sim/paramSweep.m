@@ -21,13 +21,22 @@ for i1 = 1:length(dim_r0s)
         for i3 = 1:length(log_axis)  % eta
             for i4 = 1:length(log_axis)  % beta
                 for i5 = 1:length(log_axis)  % gamma
-                    tic;
                     % unpack the parameters now to avoid parfor overhead
                     dim_r0 = dim_r0s(i1);  % ratio of line of sight to excluded volume (bird size r0 / rc)
                     dim_v0 = dim_v0s(i2);  % dimensionless velocity magnitude (v0 dt / rc)
                     eta = log_axis(i3);  % noise magnitude
                     beta = log_axis(i4);  % excluded volume magnitude
                     gamma = log_axis(i5);  % strength of attraction to chimney
+
+                    % check if the path exists to avoid overwriting
+                    ordername = sprintf('param_sweep/eta1e%d_beta1e%d_gamma1e%d_theta%dpi_ro%d_vo1e%d_.csv', log10(eta), log10(beta), log10(gamma), theta / pi, dim_r0, log10(dim_v0));
+                    if isfile(ordername)
+                        fprintf(['Skipping ' ordername '\n']);
+                        count = count + 1;
+                        continue
+                    end
+                    tic;
+
                     
                     % do the ensemble averaging
                     pol = zeros(Nsteps, 1);
@@ -48,11 +57,10 @@ for i1 = 1:length(dim_r0s)
                     ma = ma / num_repeats;
 
                     % save the results
-                    name = sprintf('param_sweep/eta1e%d_beta1e%d_gamma1e%d_theta%dpi_ro%d_vo1e%d_.csv', log10(eta), log10(beta), log10(gamma), theta / pi, dim_r0, log10(dim_v0));
                     data = [pol ma];
                     data_as_table = array2table(data);
                     data_as_table.Properties.VariableNames(1:2) = {'va', 'ma'};
-                    writetable(data_as_table, name);
+                    writetable(data_as_table, ordername);
 
                     fprintf('__________________________________\nDone with %d of %d\nIteration time: %0.1f s\nRemaining time: %f s\n', count, total, toc, toc * (total - count));
                     count = count + 1;
