@@ -56,6 +56,34 @@ def get_velocity_order_parameter(df_start):
     vel_order = df.groupby('time')[['vx', 'vy', 'vz']].sum().apply(np.linalg.norm, axis=1) / num_birds  # average the velocity vectors and get the resulting norm
     return vel_order
 
+def get_angular_momentum_order_parameter(df_start):
+    df = df_start.copy()
+    ma = []
+    times = np.sort(df.time.unique())
+    for time in tqdm(times):
+        # Filter the DataFrame only once per time
+        df_time = df[df.time == time]
+
+        # Compute the center of mass (r_cm) once for all particles at this time
+        r_cm = df_time[['x', 'y', 'z']].mean().values
+
+        # Calculate rcm for all particles at once
+        rcm = df_time[['x', 'y', 'z']].values - r_cm
+
+        # Get velocities for all particles
+        v = df_time[['vx', 'vy', 'vz']].values
+        v_norms = np.linalg.norm(v, axis=1)
+        v /= v_norms[:, None]
+
+        # Vectorized cross product and norms
+        cross_product_norms = np.linalg.norm(np.cross(rcm, v, axis=1), axis=1)
+        rcm_norms = np.linalg.norm(rcm, axis=1)
+
+        # Calculate the values and append their mean
+        vals = cross_product_norms / rcm_norms
+        ma.append(np.mean(vals))
+    return pd.Series(ma, index=times)
+
 def get_variance_ratios(df_start, skip_every_n_steps=3):
     pca = PCA(n_components=3)
 
