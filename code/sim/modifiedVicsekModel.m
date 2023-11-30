@@ -2,10 +2,10 @@
 clear; close all; clc;
 
 % parameters
-dim_v0 = 1.03;  % dimensionless velocity magnitude
+dim_v0 = 1.0;  % dimensionless velocity magnitude
 dim_eta = 1.0;  % dimensionless angular noise
 phi = pi;  % rear field of view restriction
-rho = 2.5;  % particle number density
+rho = 5.0;  % particle number density
 % L = sqrt(N / rho);  % box length
 % N = 2000;  % number of particles
 L = 20;  % box length
@@ -65,7 +65,7 @@ for tt = 1:N_steps
     theta_adj = (dTheta >= omega_max * dt) * omega_max * dt - (dTheta <= -omega_max * dt) * omega_max * dt;
     
     % update angles
-    theta = theta_neigh + (2 * rand(1, N) - 1) * eta / 2;
+    theta = theta_neigh + (2 * rand(1, N) - 1) * eta / 2 + theta_adj;
 
     if anynan(theta)
         break;
