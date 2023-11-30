@@ -1,7 +1,9 @@
-function vs = vicsekvelocities_IW(N, v0, r0, rc, eta, beta, L, rs, vs, phi_los, gamma)
+function vs = vicsekvelocities_IW(N, v0, r0, rc, eta, beta, gamma, theta, rs, vs)
     %{
-    Function that finds the updated velocity for a Vicsek model with repulsion.
-    The model is from PhysRevE.77.046113
+    Function that finds the updated velocity for a Vicsek model with
+    repulsion using the scheme from PhysRevE.77.046113 with a modification
+    to allow line of sight alignment from 10.1088/1361-6463/aab0d4 and a
+    global attraction towards the chimney from PhysRevE.107.014209
     
     Inputs:
         N          The number of cells
@@ -10,7 +12,8 @@ function vs = vicsekvelocities_IW(N, v0, r0, rc, eta, beta, L, rs, vs, phi_los, 
         rc         The diameter of the cell
         eta        The relative strength of the noise
         beta       The relative strength of the repulsion
-        L          The size of the box
+        gamma      The strength of the attraction to the origin
+        theta      The angle of the particle line of sight for neighbor alignment
         rs         Nx2 matrix of cell positions
         vs         Nx2 matrix of cell velocities
     
@@ -24,23 +27,22 @@ function vs = vicsekvelocities_IW(N, v0, r0, rc, eta, beta, L, rs, vs, phi_los, 
     Si_norm = zeros(N, 1);  % Number of neighbors for each cell i
     Fi = zeros(N, 2);       % Total repulsive force for each cell i
     ones_temp = ones(N, 1);
-    theta = atan2(vs(:, 2), vs(:, 1));
+    orientation = atan2(vs(:, 2), vs(:, 1));
+
     % Calculate Fi
     for i=1:N
        % Calculate distance between cell i and the rest within a periodic box
        rijs = -[rs(:, 1) - rs(i, 1), rs(:, 2) - rs(i, 2)];
-       if gamma == 0
-           rijs = mod((rijs + L./2), L) - L./2;
-       end
-       dists = sqrt(sum(rijs'.^2))';
+
+       dists = sqrt(sum(rijs' .^ 2))';
 
        % calculate the norm for direction
        rijs_norm = normer(rijs);
        
        % Calculate the set Si using the distance and angle constraint
        alpha = atan2(rijs_norm(:, 2), rijs_norm(:, 1));
-       alpha = angdiff(ones_temp * theta(i), alpha);
-       Si = (((dists <= r0) & (abs(alpha) <= phi_los / 2)) | (dists == 0));
+       alpha = angdiff(ones_temp * orientation(i), alpha);
+       Si = (((dists <= r0) & (abs(alpha) <= theta / 2)) | (dists == 0));
        
        Si_norm(i) = sum(Si);
        
@@ -57,7 +59,7 @@ function vs = vicsekvelocities_IW(N, v0, r0, rc, eta, beta, L, rs, vs, phi_los, 
     % Calculate a matrix of random unit vectors
     noise = normer(randn(N, 2));
     
-    vs = normer(sum_vs./v0 + beta.*Fi + eta.*[Si_norm,Si_norm].*noise - gamma * rs) .* v0;
+    vs = normer(sum_vs ./ v0 + beta .* Fi + eta .* [Si_norm, Si_norm] .* noise - gamma * rs) .* v0;
 end
 
 
@@ -71,6 +73,6 @@ function v = normer(input)
         v         The normalized matrix
     %}
     
-    normval = sqrt(sum(input.^2, 2)) + 10^-16;
+    normval = sqrt(sum(input .^ 2, 2)) + 10 ^ - 16;
     v = input ./ [normval, normval];
 end
