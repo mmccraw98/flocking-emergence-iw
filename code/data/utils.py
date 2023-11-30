@@ -98,6 +98,25 @@ def get_number_densities(df_start, skip_every_n_steps=3):
     
     return np.array(densities)
 
+def get_principal_axes(df_start, skip_every_n_steps=3):
+    pca = PCA(n_components=3)
+
+    principal_axes = []
+
+    df = df_start.copy()
+    times = np.sort(df.time.unique())
+    for i in tqdm(range(1, times.size // skip_every_n_steps)):
+        time = times[i * skip_every_n_steps]
+        sub_df = df[(df.time == time)].copy()
+        pos = sub_df[['x', 'y', 'z']].values
+        try:
+            pca.fit(pos)
+            principal_axes.append(pca.components_)
+        except:
+            principal_axes.append(np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]]))
+    
+    return np.array(principal_axes)
+
 def get_number_densities_alt(df_start, skip_every_n_steps=3):
     df = df_start.copy()
     densities = []
@@ -184,3 +203,24 @@ def section_df_into_disordered_ordered_regimes(df_start, phi_low=0.2, phi_high=0
             if stop - start > min_length:
                 results[key]['regimes'].append(time[start:stop])
     return results['low']['regimes'], results['high']['regimes']
+
+def time_correlation_function(vectors, norm=True):
+    N = len(vectors)
+    max_lag = N - 1
+    correlation = np.zeros(max_lag)
+
+    # Compute the autocorrelation for delta t = 0
+    if norm:
+        autocorr_at_zero = np.mean([np.dot(vectors[t], vectors[t]) for t in range(N)])
+    else:
+        autocorr_at_zero = 1
+
+    for dt in tqdm(range(max_lag)):
+        sum_corr = 0
+        count = 0
+        for t in range(N - dt):
+            sum_corr += np.dot(vectors[t], vectors[t + dt])
+            count += 1
+        correlation[dt] = sum_corr / (count * autocorr_at_zero)
+
+    return correlation
