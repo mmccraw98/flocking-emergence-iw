@@ -200,7 +200,7 @@ def get_dist_pdf(df, N_bins=100):
 def np_convolve_moving_average(arr, window_size):
     return np.convolve(arr, np.ones(window_size) / window_size, mode='valid')
 
-def section_df_into_disordered_ordered_regimes(df_start, phi_low=0.2, phi_high=0.6, sm_perc=0.01, min_length=100):
+def section_df_into_disordered_ordered_regimes(df_start, phi_low=0.2, phi_high=0.6, sm_perc=0.01, min_length=100, show_plots=False):
     df = df_start.copy()
     vel_order = get_velocity_order_parameter(df)
     time = np.sort(df.time.unique())
@@ -210,7 +210,7 @@ def section_df_into_disordered_ordered_regimes(df_start, phi_low=0.2, phi_high=0
 
     results = {'low': {'regimes': [], 'condition': vel_order_sm < phi_low}, 'high': {'regimes': [], 'condition': vel_order_sm > phi_high}}
 
-    for key in results.keys():
+    for key in tqdm(results.keys()):
         condition = results[key]['condition']
         starts = np.where(np.diff(condition.astype(int)) == 1)[0] + 1
         stops = np.where(np.diff(condition.astype(int)) == -1)[0] + 1
@@ -230,6 +230,8 @@ def section_df_into_disordered_ordered_regimes(df_start, phi_low=0.2, phi_high=0
         for start, stop in zip(adjusted_starts, adjusted_stops):
             if stop - start > min_length:
                 results[key]['regimes'].append(time[start:stop])
+                if show_plots:
+                    plt.plot(time[start:stop], vel_order_sm[start:stop])
     return results['low']['regimes'], results['high']['regimes']
 
 def time_correlation_function(vectors, norm=True):
