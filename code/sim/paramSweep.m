@@ -6,7 +6,7 @@ Nlog = 1001;  % number of steps to log
 show_plot = false;  % show animation
 save_last_N = 500;  % all the simulation data beyond this point will be saved
 
-theta = pi;  % line of sight arc - ADJUST BETWEEN PI AND 2 PI (for vicsek)
+theta = 2 * pi;  % line of sight arc - ADJUST BETWEEN PI AND 2 PI (for vicsek)
 
 dim_r0s = [2 5 10];
 dim_v0s = [1e-1 1e0 1e1];
